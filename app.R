@@ -117,7 +117,7 @@ ui <- function(x) {
         ),
         tags$div(
           class = "title-container",
-          tags$h2("dincalcilab/samurai", class = "app-title"),
+          tags$h2("ShinySAMURAI", class = "app-title"),
           tags$span("A user-friendly interface for your copy number analysis with SAMURAI", class = "app-subtitle")
         )
       )
@@ -131,18 +131,18 @@ ui <- function(x) {
                         onMouseOver = "this.style.color='black'",
                         onMouseOut = "this.style.color='darkviolet'",
                         style = "color: darkviolet; font-weight: bold; border: none; background-color: inherit;"),
-    windowTitle = "dincalcilab/samurai", 
+    windowTitle = "ShinySAMURAI", 
     collapsible = TRUE,
     
     tabPanel(title = span(icon("house"), "Home"),
-             # Include your CSS and JavaScript
+             # Include your CSS 
              includeCSS("css/custom.css"),
              useShinyjs(),
-             use_notiflix_notify(position = "left-bottom", width = "400px"),
-             
-             shiny::uiOutput("report_button", inline = TRUE),
-             shiny::uiOutput("nxf_report_button", inline = TRUE),
-             shiny::uiOutput("outputFilesLocation", inline = TRUE),
+             #use_notiflix_notify(position = "left-bottom", width = "800px"),
+             #
+             #shiny::uiOutput("report_button", inline = TRUE),
+             #shiny::uiOutput("nxf_report_button", inline = TRUE),
+             #shiny::uiOutput("outputFilesLocation", inline = TRUE),
              
              shiny::div(id = "commands_panel",
                         fluidRow(
@@ -183,10 +183,7 @@ ui <- function(x) {
                                        this.style.transform = 'translateY(0px)';
                                      ", 
                                                   title = "Please select an input file for dincalcilab/samurai.", 
-                                                  icon = icon("folder-open")),
-                                 
-                                 # 1. Make sure you're using shinyDirButton instead of shinyFilesButton for directories
-                                 # Replace your current button with:
+                                                  icon = icon("file")),
                                  
                                  shinyDirButton(id = "outdir", 
                                                 label = "Select output directory", 
@@ -202,7 +199,7 @@ ui <- function(x) {
                  border: 2px solid #e1e5e9;
                  border-radius: 12px;
                  padding: 12px 20px;
-                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                 box-shadow: 0 2px 8px rgba(10, 20, 10, 0.1);
                  transition: all 0.3s ease;
                  font-size: 16px;
                  cursor: pointer;
@@ -265,16 +262,27 @@ ui <- function(x) {
                                                   icon = icon("file-code"))
                           ),
                           column(6, 
-                                 actionButton("run", "Run SAMURAI", 
-                                              style = "color: blue; font-weight: bold;", 
-                                              onMouseOver = "this.style.color = 'orange' ", 
-                                              onMouseOut = "this.style.color = 'blue' ", 
-                                              icon = icon("play")),
+                                 actionButton(
+                                   "run", "Run SAMURAI",
+                                   class = "primary-button",
+                                   style = "color: white; font-weight: bold;",
+                                   onMouseOver = "
+    this.style.backgroundColor = '#ff0087';
+    this.style.borderColor = '#ff0087';
+    this.style.boxShadow = '0 4px 16px rgba(255, 0, 135, 0.3)';
+    this.style.transform = 'translateY(-2px)';
+  ",
+                                   onMouseOut = "
+    this.style.backgroundColor = '#0695fd';
+    this.style.borderColor = '#0695fd';
+    this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+    this.style.transform = 'translateY(0px)';
+  ",
+                                   icon = icon("play")
+                                 )
+                                 ,
                                  
                                  actionButton("reset", "Reset", 
-                                              style = "color: blue; font-weight: bold;",
-                                              onMouseOver = "this.style.color = 'orange' ",
-                                              onMouseOut = "this.style.color = 'blue' ", 
                                               icon = icon("redo")),
                                  
                                  actionButton("docs", "Documentation", 
@@ -290,11 +298,11 @@ ui <- function(x) {
                         
                         # Panel to display selected paths
                         tags$div(
-                          style = "margin-top: 15px; font-size: 0.9em;",
-                          tags$div(id = "input_path_display", style = "margin-bottom: 5px;"),
-                          tags$div(id = "output_path_display", style = "margin-bottom: 5px;"),
-                          tags$div(id = "config_path_display", style = "margin-bottom: 5px;"),
-                          tags$div(id = "yaml_path_display", style = "margin-bottom: 5px;")
+                          style = "margin-top: 20px; font-size: 1em;",
+                          tags$div(id = "input_path_display", style = "margin-bottom: 10px;"),
+                          tags$div(id = "output_path_display", style = "margin-bottom: 10px;"),
+                          tags$div(id = "config_path_display", style = "margin-bottom: 10px;"),
+                          tags$div(id = "yaml_path_display", style = "margin-bottom: 10px;")
                         ),
                         
                         # Pipeline parameters 
@@ -314,18 +322,9 @@ ui <- function(x) {
                                                          label = "Select nextflow profile",
                                                          choices = c("docker", "conda", "singularity"),
                                                          selected = "docker",
-                                                         multiple = FALSE),
-                                          
-                                          numericInput("max_cpus", 
-                                                       label = "Max CPUs", 
-                                                       value = 8,
-                                                       min = 1,
-                                                       max = 32)
+                                                         multiple = FALSE)
                                    ),
                                    column(6,
-                                          textInput("max_memory", 
-                                                    label = "Max Memory", 
-                                                    value = "16.GB"),
                                           
                                           textInput("pipeline_version",
                                                     label = "Pipeline version",
@@ -338,7 +337,7 @@ ui <- function(x) {
                                  fluidRow(
                                    column(12,
                                           checkboxInput("tower", "Use Nextflow Tower to monitor run", value = FALSE),
-                                          checkboxInput("resume", "Resume previously failed run", value = FALSE)
+                                          checkboxInput("resume", "Resume previously failed run", value = TRUE)
                                    )
                                  )
                         )
@@ -667,17 +666,16 @@ server <- function(input, output, session) {
       nxf_args <- c("run", "dincalcilab/samurai",
                     "-r", input$pipeline_version,
                     "--input", optional_params$input_file,
-                    "--outdir", paste0(getwd(), "/SAMURAI_output"),
-                    "-profile", optional_params$profile,
-                    "-resume")
+                    "--outdir", optional_params$outdir,
+                    "-profile", optional_params$profile)
       
       # Add custom config if selected
       if(!is.null(optional_params$config_file)) {
         nxf_args <- c(nxf_args, "-c", optional_params$config_file)
       }
       
-   if(!is.null(optional_params$custom_params)) {
-        nxf_args <- c(nxf_args, "-params-file", optional_params$custom_params)
+   if(!is.null(optional_params$params_yaml)) {
+        nxf_args <- c(nxf_args, "-params-file", optional_params$params_yaml)
       }
       
       # Add optional parameters
