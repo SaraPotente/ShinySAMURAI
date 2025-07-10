@@ -1,3 +1,3 @@
-# scripts
+# ShinySAMURAI
 
-This repository is a backup of various scripts used for different projects.
+This repository contains a ShinyApp for SAMURAI pipeline (https://github.com/DIncalciLab/samurai)
