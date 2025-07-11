@@ -12,9 +12,9 @@ body {
 /* --- Header --- */
 .app-header {
   background: linear-gradient(to right, #ff0087, #0695fd);
-  color: pink;
+  color: white;
   padding: 10px 5px;
-  margin-bottom: 0px;
+  margin-bottom: 0;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
@@ -50,22 +50,42 @@ body {
   font-family: 'Quicksand', sans-serif;
   font-weight: 400;
   font-size: 24px;
-  opacity: 0.9;
+  opacity: 0.95;
   color: #ffeaf4;
 }
 
 /* --- Navbar --- */
 .navbar {
-  background: linear-gradient(to right, #ffaad5, #b3dcff);
-  border-bottom: 2px solid #ff008750;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  background: linear-gradient(to right, #ff66b2, #66c2ff);
+  border-bottom: 2px solid #ff008770;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  margin-bottom: 0;
 }
 
 .navbar-nav {
-  margin: 0 auto;
-  display: table;
-  table-layout: fixed;
-  float: none;
+  margin: 0 !important;
+  display: block !important;
+  float: left !important;
+  background: transparent;
+}
+
+.navbar-default .navbar-nav > li > a {
+  color: #222; /* Darker for better readability */
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.navbar-default .navbar-nav > li > a:hover {
+  color: #ff0087;
+}
+
+/* Active nav item */
+.navbar-default .navbar-nav > .active > a,
+.navbar-default .navbar-nav > .active > a:focus,
+.navbar-default .navbar-nav > .active > a:hover {
+  color: white;
+  background-color: #ff0087;
+  border-radius: 8px;
 }
 
 /* --- Tabs --- */
@@ -77,16 +97,16 @@ body {
   padding: 10px 15px;
   margin-right: 2px;
   border: 2px solid transparent;
-  border-radius: 16px 16px 16px 16px;
+  border-radius: 16px;
   color: #0695fd;
   font-weight: 600;
   transition: all 0.3s ease;
-  background-color: #fef4fb;
+  background-color: #fff0fa;
 }
 
 .nav-tabs > li > a:hover {
   background-color: #ffe1f0;
-  border-color: #ff008750 #ff008750 #ddd;
+  border-color: #ff66b2;
   color: #ff0087;
 }
 
@@ -99,6 +119,7 @@ body {
   border-bottom-color: transparent;
   font-weight: bold;
 }
+
 /* --- Action Buttons (Pastel) --- */
 .action-button {
   background-color: #fcd6ea; /* soft pink */
