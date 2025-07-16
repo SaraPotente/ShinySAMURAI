@@ -1,12 +1,9 @@
-# server.R
-
 server <- function(input, output, session) {
   options(shiny.error = function() { 
     recover()
   })
   ncores <- parallel::detectCores()
   
-  # nx_notify_success comes from global.R
   nx_notify_success(paste("Hello ", Sys.getenv("LOGNAME"), 
                           "! There are ", ncores, " cores available.", sep = ""))
   
@@ -23,7 +20,7 @@ server <- function(input, output, session) {
     custom_params = NULL
   )
   
-  # Update user counts (users reactive value comes from global.R)
+  # Update user counts
   isolate({
     users$count <- users$count + 1
   })
@@ -43,7 +40,88 @@ server <- function(input, output, session) {
   nxf_hash <- sprintf("%s_%s.html", as.integer(Sys.time()), digest::digest(runif(1)))
   
   # Directory and file selection
-  # volumes comes from global.R
+  # Enhanced volumes setup with system paths and error handling
+  volumes <- tryCatch({
+    base_volumes <- c(
+      "Home" = fs::path_home(),
+      "Desktop" = file.path(fs::path_home(), "Desktop"),
+      "Documents" = file.path(fs::path_home(), "Documents"),
+      "Downloads" = file.path(fs::path_home(), "Downloads")
+    )
+    
+    # Add system directories if they exist and are accessible
+    system_paths <- c(
+      "Root" = "/",
+      "Mnt" = "/mnt",
+      "Media" = "/media",
+      "Opt" = "/opt",
+      "Tmp" = "/tmp",
+      "Var" = "/var",
+      "Usr" = "/usr"
+    )
+    
+    # Check which system paths exist and are readable
+    accessible_paths <- c()
+    for (path_name in names(system_paths)) {
+      path_value <- system_paths[[path_name]]
+      if (dir.exists(path_value) && file.access(path_value, mode = 4) == 0) {
+        accessible_paths[path_name] <- path_value
+      }
+    }
+    
+    # Combine base volumes with accessible system paths
+    c(base_volumes, accessible_paths)
+    
+  }, error = function(e) {
+    # Fallback to just home directory if there are issues
+    warning("Could not set up extended volumes, falling back to home directory")
+    c("Home" = fs::path_home())
+  })
+  
+  # Alternative: More comprehensive approach with getVolumes
+  volumes_comprehensive <- tryCatch({
+    # Start with user directories
+    user_volumes <- c(
+      "Home" = fs::path_home(),
+      "Desktop" = file.path(fs::path_home(), "Desktop"),
+      "Documents" = file.path(fs::path_home(), "Documents"),
+      "Downloads" = file.path(fs::path_home(), "Downloads")
+    )
+    
+    # Add system volumes from getVolumes if available
+    system_volumes <- tryCatch({
+      getVolumes()()
+    }, error = function(e) {
+      c()
+    })
+    
+    # Add common Linux mount points
+    linux_mounts <- c(
+      "Root" = "/",
+      "Mnt" = "/mnt",
+      "Media" = "/media"
+    )
+    
+    # Filter to only include existing and accessible paths
+    all_volumes <- c(user_volumes, system_volumes, linux_mounts)
+    accessible_volumes <- c()
+    
+    for (vol_name in names(all_volumes)) {
+      vol_path <- all_volumes[[vol_name]]
+      if (dir.exists(vol_path) && file.access(vol_path, mode = 4) == 0) {
+        accessible_volumes[vol_name] <- vol_path
+      }
+    }
+    
+    accessible_volumes
+    
+  }, error = function(e) {
+    # Ultimate fallback
+    c("Home" = fs::path_home())
+  })
+  
+  # Use the comprehensive version
+  volumes <- volumes_comprehensive
   
   # Input file selection
   shinyFileChoose(input, 
@@ -125,84 +203,39 @@ server <- function(input, output, session) {
   
   # Load default parameters from nextflow.config if it exists
   default_params <- reactive({
-    # Path to the specific repository for clarity
-    repo_owner <- "dincalciLab"
-    repo_name <- "samurai"
-    
-    # 1. First, try to find nextflow.config in common local development paths
+    # Try to find nextflow.config in current directory or parent directories
     config_paths <- c(
-      "nextflow.config",         # Current working directory
-      "../nextflow.config",      # One level up
-      "../../nextflow.config"    # Two levels up
+      "nextflow.config",
+      "../nextflow.config",
+      "../../nextflow.config"
     )
-
+    
     for(config_path in config_paths) {
       if(file.exists(config_path)) {
-        message(paste("Found nextflow.config in local path:", config_path))
-        # parse_nextflow_config comes from global.R
         return(parse_nextflow_config(config_path))
       }
     }
-
-    # 2. If not found, try to locate it within Nextflow's default asset cache
-    # This path is generally $HOME/.nextflow/assets/<owner>/<repo>/
-    nxf_cache_dir <- file.path(Sys.getenv("HOME"), ".nextflow", "assets", repo_owner, repo_name)
-    nxf_cached_config_path <- file.path(nxf_cache_dir, "nextflow.config")
-
-    if (file.exists(nxf_cached_config_path)) {
-      message(paste("Found nextflow.config in Nextflow's cache:", nxf_cached_config_path))
-      # parse_nextflow_config comes from global.R
-      return(parse_nextflow_config(nxf_cached_config_path))
-    } else {
-      message(paste("Nextflow config not found in Nextflow's cache:", nxf_cached_config_path))
-    }
     
-    # 3. If still not found, as a fallback, attempt to download the raw config from GitHub
-    # This ensures the app can always get the config if internet is available,
-    # but it won't reflect a specific cached version Nextflow might be using.
-    raw_config_url <- paste0("https://raw.githubusercontent.com/", repo_owner, "/", repo_name, "/master/nextflow.config")
-    temp_config_file <- tempfile(pattern = "nextflow_config_download", fileext = ".config")
-
-    message(paste("Attempting to download nextflow.config from:", raw_config_url))
-    download_success <- tryCatch({
-      # Use a robust download method
-      download.file(raw_config_url, destfile = temp_config_file, method = "curl", quiet = TRUE)
-      TRUE
-    }, error = function(e) {
-      warning("Failed to download nextflow.config from GitHub: ", e$message)
-      FALSE
-    })
-
-    if (download_success && file.exists(temp_config_file)) {
-      message(paste("Successfully downloaded nextflow.config to:", temp_config_file))
-      # parse_nextflow_config comes from global.R
-      params <- parse_nextflow_config(temp_config_file)
-      # Clean up the temporary file after parsing
-      file.remove(temp_config_file) 
-      return(params)
-    } else {
-      message("Could not find or download nextflow.config. Returning empty list.")
-      return(list())
-    }
+    return(list())
   })
   
   # Display default parameters in Settings tab
-  #output$default_params_display <- renderUI({
-  #  params <- default_params()
-  #  
-  #  if(length(params) == 0) {
-  #    return(p("No default parameters found in nextflow.config"))
-  #  }
-  #  
-  #  param_items <- tagList()
-  #  for(name in names(params)) {
-  #    param_items[[name]] <- tags$li(
-  #      tags$strong(name), ": ", tags$code(params[[name]])
-  #    )
-  #  }
-  #  
-  #  tags$ul(param_items)
-  #})
+  output$default_params_display <- renderUI({
+    params <- default_params()
+    
+    if(length(params) == 0) {
+      return(p("No default parameters found in nextflow.config"))
+    }
+    
+    param_items <- tagList()
+    for(name in names(params)) {
+      param_items[[name]] <- tags$li(
+        tags$strong(name), ": ", tags$code(params[[name]])
+      )
+    }
+    
+    tags$ul(param_items)
+  })
   
   # Display selected file and construct command
   output$stdout <- renderPrint({
@@ -266,11 +299,11 @@ server <- function(input, output, session) {
   observeEvent(input$run, {
     if(is.null(optional_params$input_file) || is.null(optional_params$outdir)) {
       shinyjs::html(id = "stdout", "\nPlease select an input file and output directory first...", add = TRUE)
-      nx_notify_warning("Missing required selections!") # nx_notify_warning comes from global.R
+      nx_notify_warning("Missing required selections!")
     } else {
       # Disable UI during run
       shinyjs::disable(id = "commands_panel")
-      nx_notify_success("Starting pipeline...") # nx_notify_success comes from global.R
+      nx_notify_success("Starting pipeline...")
       
       # Change button label during run
       shinyjs::html(id = "run", html = "Running... please wait")
@@ -297,14 +330,33 @@ server <- function(input, output, session) {
       
       # Handle run completion
       if(p$status == 0) {
-         # Hide command panel
+        # Hide command panel
         shinyjs::hide("commands_panel")
-                    
+        
+        # Clean work directory
+        work_dir <- file.path(optional_params$outdir, "work")
+        rmwork <- system2("rm", args = c("-rf", work_dir))
+        
+        if(rmwork == 0) {
+          nx_notify_success(paste("Temp work directory deleted -", work_dir))
+        } else {
+          nx_notify_warning("Could not delete temp work directory!")
+        }
+        
+        # Copy reports to www/ directory
         # Adjust report paths to match your pipeline's output structure
         main_report <- file.path(optional_params$outdir, "multiqc", "multiqc_report.html")
         nxf_report <- file.path(optional_params$outdir, "pipeline_info", "execution_report.html")
         
-     
+        # Copy reports if they exist
+        if(file.exists(main_report)) {
+          system2("cp", args = c(main_report, paste("www/", report_hash, sep = "")))
+        }
+        
+        if(file.exists(nxf_report)) {
+          system2("cp", args = c(nxf_report, paste("www/", nxf_hash, sep = "")))
+        }
+        
         # Add report buttons
         if(file.exists(main_report)) {
           output$report_button <- renderUI({
@@ -347,10 +399,73 @@ server <- function(input, output, session) {
         shinyalert("Error!", type = "error", 
                    animation = "slide-from-bottom", 
                    text = "Pipeline finished with errors. Press OK to reload the app and try again.", 
-                   showCancelButton = TRUE
-                   
+                   showCancelButton = TRUE, 
+                   callbackJS = "function(x) { if (x == true) {history.go(0);} }"
         )
       }
     }
+  })
+  
+  # Check for updates
+  observeEvent(input$check_updates, {
+    withProgress(message = 'Checking for updates...', value = 0.5, {
+      current_info <- get_pipeline_version()
+      
+      if(current_info$version != pipeline_info$version) {
+        shinyalert(
+          title = "Update Available!",
+          text = paste0("New version available: ", current_info$version, 
+                        "<br>Current version: ", pipeline_info$version),
+          type = "info",
+          html = TRUE
+        )
+      } else {
+        shinyalert(
+          title = "Up to date",
+          text = paste0("You are using the latest version: ", pipeline_info$version),
+          type = "success"
+        )
+      }
+    })
+  })
+  
+  # Cleanup when session ends
+  session$onSessionEnded(function() {
+    # Delete temporary reports
+    if(file.exists(paste("www/", report_hash, sep = ""))) {
+      system2("rm", args = c("-rf", paste("www/", report_hash, sep = "")))
+    }
+    if(file.exists(paste("www/", nxf_hash, sep = ""))) {
+      system2("rm", args = c("-rf", paste("www/", nxf_hash, sep = "")))
+    }
+    
+    # Update user count
+    isolate({
+      users$count <- users$count - 1
+      writeLines(as.character(users$count), con = "userlog")
+    })
+  })
+  
+  # Reset buttons functionality
+  observeEvent(input$pipelineButton, {
+    shinyalert(title = "",
+               type = "warning",
+               text = "Start again or stay on page?", 
+               html = TRUE, 
+               confirmButtonText = "Start again", 
+               showCancelButton = TRUE, 
+               callbackJS = "function(x) { if (x == true) {history.go(0);} }"
+    )
+  })
+  
+  observeEvent(input$reset, {
+    shinyalert(title = "",
+               type = "warning",
+               text = "Start again or stay on page?", 
+               html = TRUE, 
+               confirmButtonText = "Start again", 
+               showCancelButton = TRUE, 
+               callbackJS = "function(x) { if (x == true) {history.go(0);} }"
+    )
   })
 }

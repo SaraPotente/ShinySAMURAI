@@ -34,11 +34,11 @@ ui <- function(x) {
              # Include your CSS 
              includeCSS("css/custom.css"),
              useShinyjs(),
-             #use_notiflix_notify(position = "left-bottom", width = "800px"), # Uncomment if you have this package
+             #use_notiflix_notify(position = "left-bottom", width = "800px"),
              #
-             shiny::uiOutput("report_button", inline = TRUE), # These outputs are rendered in server.R
-             shiny::uiOutput("nxf_report_button", inline = TRUE),
-             shiny::uiOutput("outputFilesLocation", inline = TRUE),
+             #shiny::uiOutput("report_button", inline = TRUE),
+             #shiny::uiOutput("nxf_report_button", inline = TRUE),
+             #shiny::uiOutput("outputFilesLocation", inline = TRUE),
              
              shiny::div(id = "commands_panel",
                         fluidRow(
@@ -95,7 +95,7 @@ ui <- function(x) {
                  border: 2px solid #e1e5e9;
                  border-radius: 12px;
                  padding: 12px 20px;
-                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                 box-shadow: 0 2px 8px rgba(10, 20, 10, 0.1);
                  transition: all 0.3s ease;
                  font-size: 16px;
                  cursor: pointer;
@@ -217,14 +217,14 @@ ui <- function(x) {
                                           selectizeInput("nxf_profile",
                                                          label = "Select nextflow profile",
                                                          choices = c("docker", "conda", "singularity"),
-                                                         selected = "singularity",
+                                                         selected = "docker",
                                                          multiple = FALSE)
                                    ),
                                    column(6,
                                           
                                           textInput("pipeline_version",
                                                     label = "Pipeline version",
-                                                    value = pipeline_info$version) # pipeline_info comes from global.R
+                                                    value = pipeline_info$version)
                                    )
                                  ),
                                  
@@ -262,25 +262,28 @@ ui <- function(x) {
                       wellPanel(
                         selectInput("default_profile", "Default Nextflow Profile:", 
                                     choices = c("docker", "conda", "singularity"),
-                                    selected = "singularity"))
+                                    selected = "docker"),
+                        numericInput("default_cpus", "Default CPU Cores:", value = 8),
+                        textInput("default_memory", "Default Memory:", value = "16.GB"),
+                        checkboxInput("save_defaults", "Save as defaults", value = FALSE)
+                      )
                ),
                column(6,
                       h3("Pipeline Information"),
                       wellPanel(
-                        p("Pipeline Version: ", tags$code(pipeline_info$version)), # pipeline_info comes from global.R
-                        p("Pipeline Updated: ", tags$code(pipeline_info$published_at)), # pipeline_info comes from global.R
-                        p("Nextflow Version: ", tags$code(nextflow_version)), # nextflow_version comes from global.R
+                        p("Pipeline Version: ", tags$code(pipeline_info$version)),
+                        p("Pipeline Updated: ", tags$code(pipeline_info$published_at)),
+                        p("Nextflow Version: ", tags$code(nextflow_version)),
                         p("Last App Update: ", tags$code(format(Sys.Date(), "%B %d, %Y"))),
                         tags$hr(),
                         actionButton("check_updates", "Check for Updates", 
                                      icon = icon("sync"), 
                                      style = "color: blue; font-weight: bold;")
+                      ),
+                      h3("Default Parameters"),
+                      wellPanel(
+                        uiOutput("default_params_display")
                       )
-                      #,
-                      #h3("Default Parameters"),
-                      #wellPanel(
-                      #  uiOutput("default_params_display")
-                      #)
                )
              )
     )
