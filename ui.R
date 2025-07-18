@@ -1,5 +1,5 @@
 # ui.R
-
+source("global.R")
 ui <- function(x) {
   navbarPage(
     # Custom header with logo and title
@@ -217,7 +217,7 @@ ui <- function(x) {
                                           selectizeInput("nxf_profile",
                                                          label = "Select nextflow profile",
                                                          choices = c("docker", "conda", "singularity"),
-                                                         selected = "docker",
+                                                         selected = "singularity",
                                                          multiple = FALSE)
                                    ),
                                    column(6,

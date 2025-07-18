@@ -1,5 +1,4 @@
 #### global.R ####
-
 # Load all necessary libraries
 libs <- c("shiny", "shinyFiles", "shinyjs", "shinyalert", "shinypop",
           "processx", "stringr", "digest", "dplyr", "fs", "yaml",
@@ -96,6 +95,32 @@ parse_nextflow_config <- function(config_file = "nextflow.config") {
   }
   
   return(params)
+}
+
+check_multiqc <- function(outdir_path = NULL) {
+  if (is.null(outdir_path)) {
+    outdir <- parsePath(input$outdir, "dir")
+  } else {
+    outdir <- outdir_path
+  }
+  
+  if (is.null(outdir)) return(NULL)
+  
+  # Check for both possible report names
+  possible_reports <- c(
+    file.path(outdir, "multiqc", "multiqc_report.html"),
+    file.path(outdir, "multiqc", "SAMURAI-Results_multiqc_report.html")
+  )
+  
+  for (report_path in possible_reports) {
+    if (file.exists(report_path)) {
+      multiqc_path(report_path)
+      return(TRUE)
+    }
+  }
+  
+  multiqc_path(NULL)
+  return(FALSE)
 }
 
 # Versioni di pipeline e Nextflow
