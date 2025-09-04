@@ -1,9 +1,10 @@
 source("global.R")
+
 server <- function(input, output, session) {
   options(shiny.error = function() { recover() })
   ncores <- parallel::detectCores()
   nx_notify_success(paste("Hello ", Sys.getenv("LOGNAME"), "! There are ", ncores, " cores available.", sep = ""))
-
+  
   # Initialization of reactive values
   optional_params <- reactiveValues(
     tower = "", 
@@ -16,16 +17,16 @@ server <- function(input, output, session) {
     params_list = list(),
     custom_params = NULL
   )
-
+  
   # Track user count
   isolate({ users$count <- users$count + 1 })
   observe({ writeLines(as.character(users$count), con = "userlog") })
-
+  
   observeEvent(input$more, { shinyjs::toggle("optional_inputs") })
-
+  
   report_hash <- sprintf("%s_%s.html", as.integer(Sys.time()), digest::digest(runif(1)))
   nxf_hash <- sprintf("%s_%s.html", as.integer(Sys.time()), digest::digest(runif(1)))
-
+  
   # File system setup
   volumes <- tryCatch({
     user_volumes <- c(
@@ -46,19 +47,19 @@ server <- function(input, output, session) {
     }
     accessible_volumes
   }, error = function(e) c("Home" = fs::path_home()))
-
+  
   shinyFileChoose(input, 'input_file', session = session, roots = volumes, filetypes = c('', 'csv'))
   shinyDirChoose(input, 'outdir', session = session, roots = volumes, allowDirCreate = TRUE)
   shinyFileChoose(input, 'config_file', session = session, roots = volumes, filetypes = c('', 'config', 'conf'))
   shinyFileChoose(input, 'params_yaml', session = session, roots = volumes, filetypes = c('', 'yaml', 'yml'))
-
+  
   observeEvent(input$input_file, {
     if (!is.integer(input$input_file)) {
       optional_params$input_file <- parseFilePaths(volumes, input$input_file)$datapath
       shinyjs::html("input_path_display", paste("<strong>Input file:</strong> ", optional_params$input_file))
     }
   })
-
+  
   observeEvent(input$outdir, {
     if (!is.integer(input$outdir)) {
       selected_path <- parseDirPath(volumes, input$outdir)
@@ -75,42 +76,26 @@ server <- function(input, output, session) {
       shinyjs::html("output_path_display", paste("<strong>Output directory:</strong> ", selected_path))
     }
   })
-
+  
   observeEvent(input$config_file, {
     if (!is.integer(input$config_file)) {
       optional_params$config_file <- parseFilePaths(volumes, input$config_file)$datapath
       shinyjs::html("config_path_display", paste("<strong>Config file:</strong> ", optional_params$config_file))
     }
   })
-
+  
   observeEvent(input$params_yaml, {
     if (!is.integer(input$params_yaml)) {
       optional_params$params_yaml <- parseFilePaths(volumes, input$params_yaml)$datapath
       shinyjs::html("yaml_path_display", paste("<strong>Parameters YAML:</strong> ", optional_params$params_yaml))
     }
   })
-
-  default_params <- reactive({
-    config_paths <- c("nextflow.config", "../nextflow.config", "../../nextflow.config")
-    for (config_path in config_paths) {
-      if (file.exists(config_path)) {
-        return(parse_nextflow_config(config_path))
-      }
-    }
-    return(list())
-  })
-
-  output$default_params_display <- renderUI({
-    params <- default_params()
-    if (length(params) == 0) return(p("No default parameters found in nextflow.config"))
-    tagList(lapply(names(params), function(name) tags$li(tags$strong(name), ": ", tags$code(params[[name]]))))
-  })
-
+  
   output$stdout <- renderPrint({
     optional_params$resume <- if (input$resume) "-resume" else ""
     optional_params$profile <- input$nxf_profile
     optional_params$tower <- if (input$tower) "-with-tower" else ""
-
+    
     if (is.null(optional_params$input_file) || is.null(optional_params$outdir)) {
       cat("Please select an input file and output directory to start the pipeline\n")
     } else {
@@ -125,65 +110,71 @@ server <- function(input, output, session) {
       cat(" Nextflow command to be executed:\n\n", "nextflow", paste(nxf_args, collapse = " "))
     }
   })
-
-  # Reactive value for MultiQC report
+  
+  # Reactive values for MultiQC report
   main_report <- reactiveVal(NULL)
   multiqc_path <- reactiveVal(NULL)
-
-  # Simple approach - open in new tab only (no iframe)
+  
+  # Display results
   output$results_content <- renderUI({
-    path <- main_report()
-    if (!is.null(path) && file.exists(path)) {
-      # Create a unique filename for the www directory
-      report_filename <- paste0("multiqc_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".html")
-      www_path <- file.path("www", report_filename)
+    dir <- shinyFiles::parseDirPath(volumes, input$outdir)
+    print(paste("Parsed output directory:", dir))
+    
+    if (is.null(dir) || dir == "") {
+      return(tags$p("No output directory selected"))
+    }
+    
+    # Look for MultiQC reports
+    html_files <- list.files(
+      file.path(dir, "multiqc"), 
+      pattern = "\\.html$", 
+      full.names = TRUE, 
+      recursive = TRUE
+    )
+    
+    if (length(html_files) > 0) {
+      # Pick the most recent report
+      latest_report <- html_files[which.max(file.info(html_files)$mtime)]
+      print(paste("Found MultiQC report:", latest_report))
       
-      # Copy the report to www directory
-      file.copy(path, www_path, overwrite = TRUE)
+      # Register path so assets are served by Shiny
+      shiny::addResourcePath("multiqc_report", dirname(latest_report))
       
-      # Only provide a link to open in new tab - no iframe
-      div(
-        style = "text-align: center; padding: 50px;",
-        icon("chart-bar", style = "font-size: 48px; color: #28a745; margin-bottom: 20px;"),
-        h3("MultiQC Report Ready!", style = "color: #333; margin-bottom: 30px;"),
-        p("Your MultiQC report has been generated successfully.", style = "color: #666; margin-bottom: 30px;"),
-        
-        # Big button to open report in new tab
-        div(
-          style = "margin-bottom: 20px;",
-          tags$a(
-            href = report_filename,
-            target = "_blank",
-            class = "btn btn-success btn-lg",
-            style = "padding: 15px 30px; font-size: 16px; text-decoration: none;",
-            icon("external-link-alt"),
-            " View MultiQC Report"
-          )
-        ),
-        
-        # Additional info
-        div(
-          style = "margin-top: 30px;",
-          p("The report will open in a new tab/window.", style = "color: #666; font-size: 14px;"),
-          p("If the report doesn't open automatically, please check your browser's popup blocker settings.", style = "color: #999; font-size: 12px;")
-        )
+      tags$iframe(
+        src = paste0("multiqc_report/", basename(latest_report)),
+        width = "100%",
+        height = "800px",
+        frameborder = 0
       )
     } else {
-      div(
-        style = "text-align: center; padding: 50px;",
-        icon("chart-bar", style = "font-size: 48px; color: #ccc; margin-bottom: 20px;"),
-        h4("MultiQC Report Not Available", style = "color: #666;"),
-        p("The MultiQC report will appear here once the pipeline run is complete.", style = "color: #999;")
-      )
+      tags$p("MultiQC Report Not Available")
     }
   })
-
-  # REMOVED: All problematic observeEvent handlers for buttons that don't exist or cause resets
-  # - observeEvent(input$view_report, ...)
-  # - observeEvent(input$open_report_tab, ...)
-  # - observeEvent(input$pipelineButton, ...)
-  # - observeEvent(input$reset, ...)
-
+  
+  observeEvent(input$refresh_report, {
+    path <- main_report()
+    if (!is.null(path) && file.exists(path)) {
+      main_report(NULL)
+      Sys.sleep(0.1)
+      main_report(path)
+      nx_notify_success("Report refreshed")
+    } else {
+      nx_notify_warning("No report available to refresh")
+    }
+  })
+  
+  output$download_report <- downloadHandler(
+    filename = function() {
+      paste0("multiqc_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".html")
+    },
+    content = function(file) {
+      path <- main_report()
+      if (!is.null(path) && file.exists(path)) {
+        file.copy(path, file)
+      }
+    }
+  )
+  
   observeEvent(input$run, {
     if (is.null(optional_params$input_file) || is.null(optional_params$outdir)) {
       shinyjs::html(id = "stdout", "\nPlease select an input file and output directory first...", add = TRUE)
@@ -199,8 +190,8 @@ server <- function(input, output, session) {
       withCallingHandlers({
         shinyjs::html(id = "stdout", "")
         p <- processx::run("nextflow", args = nxf_args, wd = optional_params$outdir,
-                          stdout_line_callback = function(line, proc) { message(line) },
-                          stderr_to_stdout = TRUE, error_on_status = FALSE)
+                           stdout_line_callback = function(line, proc) { message(line) },
+                           stderr_to_stdout = TRUE, error_on_status = FALSE)
       }, message = function(m) {
         shinyjs::html(id = "stdout", html = m$message, add = TRUE)
         runjs("document.getElementById('stdout').scrollTo(0,1e9);")
@@ -211,52 +202,42 @@ server <- function(input, output, session) {
         rmwork <- system2("rm", args = c("-rf", file.path(optional_params$outdir, "work")))
         if (rmwork == 0) nx_notify_success("Temp work directory deleted")
         
-        # Check for both possible report names
-        possible_reports <- c(
-          file.path(optional_params$outdir, "multiqc", "multiqc_report.html"),
-          file.path(optional_params$outdir, "multiqc", "SAMURAI-Results_multiqc_report.html")
-        )
-        
+        # Search dynamically for any .html file inside multiqc directory
+        report_dir <- file.path(optional_params$outdir, "multiqc")
         report_path <- NULL
-        for (path in possible_reports) {
-          if (file.exists(path)) {
-            report_path <- path
-            break
+        if (dir.exists(report_dir)) {
+          html_reports <- list.files(report_dir, pattern = "\\.html$", full.names = TRUE)
+          if (length(html_reports) > 0) {
+            # Use most recent
+            report_path <- html_reports[which.max(file.info(html_reports)$mtime)]
           }
         }
         
         if (!is.null(report_path)) {
-          # Set the reactive value to trigger UI update
           main_report(report_path)
           multiqc_path(report_path)
-          
           nx_notify_success("MultiQC report generated successfully!")
         } else {
           nx_notify_warning("MultiQC report not found in expected location")
         }
         
         shinyalert("Run finished!", type = "success", animation = "slide-from-bottom",
-                  text = "Pipeline finished successfully!", confirmButtonText = "OK")
+                   text = "Pipeline finished successfully!", confirmButtonText = "OK")
       } else {
         shinyjs::html(id = "run", html = "Finished with errors")
         shinyjs::enable(id = "commands_panel")
         shinyjs::disable(id = "run")
         shinyalert("Error!", type = "error", animation = "slide-from-bottom",
-                  text = "Pipeline finished with errors. Please review the output.", confirmButtonText = "OK")
+                   text = "Pipeline finished with errors. Please review the output.", confirmButtonText = "OK")
       }
     }
   })
-
-  # Clean up temporary files on session end
+  
   session$onSessionEnded(function() {
-    # Clean up any temporary report files
     report_files <- list.files("www", pattern = "multiqc_report_.*\\.html", full.names = TRUE)
     for (file in report_files) {
-      if (file.exists(file)) {
-        file.remove(file)
-      }
+      if (file.exists(file)) file.remove(file)
     }
-    
     if (file.exists(paste0("www/", report_hash))) system2("rm", args = c("-rf", paste0("www/", report_hash)))
     if (file.exists(paste0("www/", nxf_hash))) system2("rm", args = c("-rf", paste0("www/", nxf_hash)))
     isolate({

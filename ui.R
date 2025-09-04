@@ -43,10 +43,10 @@ ui <- function(x) {
              shiny::div(id = "commands_panel",
                         fluidRow(
                           column(6,
-                                 shinyFilesButton(id = "input_file", 
-                                                  label = "Select input file", 
+                                 shinyFilesButton(id = "input_file",
+                                                  label = "Select input file",
                                                   multiple = FALSE,
-                                                  buttonType = "default", 
+                                                  buttonType = "default",
                                                   class = NULL,
                                                   style = "
                                        color: #ff0087; 
@@ -63,21 +63,21 @@ ui <- function(x) {
                                        align-items: center;
                                        gap: 10px;
                                        margin-bottom: 10px;
-                                     ", 
+                                     ",
                                                   onMouseOver = "
                                        this.style.color = 'white'; 
                                        this.style.backgroundColor = '#ff0087';
                                        this.style.borderColor = '#ff0087';
                                        this.style.boxShadow = '0 4px 16px rgba(255, 0, 135, 0.3)';
                                        this.style.transform = 'translateY(-2px)';
-                                     ", 
+                                     ",
                                                   onMouseOut = "
                                        this.style.color = '#ff0087'; 
                                        this.style.backgroundColor = 'white';
                                        this.style.borderColor = '#e1e5e9';
                                        this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
                                        this.style.transform = 'translateY(0px)';
-                                     ", 
+                                     ",
                                                   title = "Please select an input file for dincalcilab/samurai.", 
                                                   icon = icon("file")),
                                  
@@ -103,14 +103,14 @@ ui <- function(x) {
                  align-items: center;
                  gap: 10px;
                  margin-bottom: 10px;
-               ", 
+               ",
                                                 onMouseOver = "
                  this.style.color = 'white'; 
                  this.style.backgroundColor = '#0695fd';
                  this.style.borderColor = '#0695fd';
                  this.style.boxShadow = '0 4px 16px rgba(6, 149, 253, 0.3)';
                  this.style.transform = 'translateY(-2px)';
-               ", 
+               ",
                                                 onMouseOut = "
                  this.style.color = '#0695fd'; 
                  this.style.backgroundColor = 'white';
@@ -118,7 +118,7 @@ ui <- function(x) {
                  this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
                  this.style.transform = 'translateY(0px)';
                "),
-                                 shinyFilesButton(id = "params_yaml", 
+              shinyFilesButton(id = "params_yaml", 
                                                   label = "Select params YAML", 
                                                   multiple = FALSE,
                                                   buttonType = "default", 
@@ -179,16 +179,7 @@ ui <- function(x) {
                                  ,
                                  
                                  actionButton("reset", "Reset", 
-                                              icon = icon("redo")),
-                                 
-                                 actionButton("docs", "Documentation", 
-                                              icon = icon("book"),
-                                              class = "rightAlign", 
-                                              onclick ="window.open('https://github.com/dincalcilab/samurai', '_blank')"),
-                                 
-                                 actionButton("more", "Advanced Options", 
-                                              icon = icon("cogs"),
-                                              style = "float: right;")
+                                              icon = icon("redo"))
                           )
                         ),
                         
@@ -245,7 +236,7 @@ ui <- function(x) {
     tabPanel(title = span(icon("question-circle"), "Help"), 
              includeMarkdown("help.md")),
     
-    tabPanel(title = span(icon("chart-bar"), "Results Viewer"),
+    tabPanel(title = span(icon("chart-bar"), "Results"),
              fluidRow(
                column(12,
                       h3("Pipeline Results Explorer"),
@@ -262,10 +253,9 @@ ui <- function(x) {
                       wellPanel(
                         selectInput("default_profile", "Default Nextflow Profile:", 
                                     choices = c("docker", "conda", "singularity"),
-                                    selected = "docker"),
+                                    selected = "singularity"),
                         numericInput("default_cpus", "Default CPU Cores:", value = 8),
-                        textInput("default_memory", "Default Memory:", value = "16.GB"),
-                        checkboxInput("save_defaults", "Save as defaults", value = FALSE)
+                        textInput("default_memory", "Default Memory:", value = "16.GB")
                       )
                ),
                column(6,
@@ -279,10 +269,6 @@ ui <- function(x) {
                         actionButton("check_updates", "Check for Updates", 
                                      icon = icon("sync"), 
                                      style = "color: blue; font-weight: bold;")
-                      ),
-                      h3("Default Parameters"),
-                      wellPanel(
-                        uiOutput("default_params_display")
                       )
                )
              )
