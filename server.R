@@ -112,8 +112,8 @@ server <- function(input, output, session) {
   })
   
   # Reactive values for MultiQC report
-  main_report <- reactiveVal(NULL)
-  multiqc_path <- reactiveVal(NULL)
+  #main_report <- reactiveVal(NULL)
+  #multiqc_path <- reactiveVal(NULL)
   
   # Display results
   output$results_content <- renderUI({
@@ -150,6 +150,32 @@ server <- function(input, output, session) {
       tags$p("MultiQC Report Not Available")
     }
   })
+  
+  # Placeholder text
+  output$results_placeholder <- renderUI({
+    dir <- shinyFiles::parseDirPath(volumes, input$outdir)
+    
+    # If no directory selected
+    if (is.null(dir) || dir == "") {
+      return(tags$p("No output directory selected"))
+    }
+    
+    # Check for MultiQC report
+    html_files <- list.files(
+      file.path(dir, "multiqc"), 
+      pattern = "\\.html$", 
+      full.names = TRUE, 
+      recursive = TRUE
+    )
+    
+    if (length(html_files) == 0) {
+      tags$p("This tab will be populated with visualizations once a pipeline run is complete.")
+    } else {
+      NULL  # hide placeholder if report exists
+    }
+  })
+  
+  
   
   observeEvent(input$refresh_report, {
     path <- main_report()

@@ -236,15 +236,18 @@ ui <- function(x) {
     tabPanel(title = span(icon("question-circle"), "Help"), 
              includeMarkdown("help.md")),
     
-    tabPanel(title = span(icon("chart-bar"), "Results"),
-             fluidRow(
-               column(12,
-                      h3("Pipeline Results Explorer"),
-                      p("This tab will be populated with visualizations once a pipeline run is complete."),
-                      uiOutput("results_content")
-               )
-             )
-    ),
+    tabPanel(
+      title = span(icon("chart-bar"), "Results"),
+      fluidRow(
+        column(
+          12,
+          h3("Pipeline Results Explorer"),
+          uiOutput("results_placeholder"),  
+          uiOutput("results_content")       
+        )
+      )
+    )
+    ,
     
     tabPanel(title = span(icon("cogs"), "Settings"),
              fluidRow(
